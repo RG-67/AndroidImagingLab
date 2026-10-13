@@ -1,9 +1,17 @@
 package com.project.android_imaging_lab.cameraX_lab
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,12 +24,20 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
 import com.project.android_imaging_lab.ui.theme.Android_Imaging_LabTheme
 
 class CameraXActivity : ComponentActivity() {
@@ -30,13 +46,71 @@ class CameraXActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             Android_Imaging_LabTheme {
-                ViewCamera(Modifier)
+                CameraScreen(Modifier)
             }
         }
     }
 
 
     @Composable
+    fun CameraScreen(modifier: Modifier) {
+
+        val context = LocalContext.current
+        val lifecycleOwner = LocalLifecycleOwner.current
+
+        var isGranted by remember {
+            mutableStateOf(
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.CAMERA
+                ) == PackageManager.PERMISSION_GRANTED
+            )
+        }
+
+        val permissionLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            isGranted = granted
+        }
+
+        LaunchedEffect(Unit) {
+            if (!isGranted) {
+                permissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+        }
+
+        if (isGranted) {
+            AndroidView(
+                modifier = modifier.fillMaxSize(),
+                factory = { context ->
+
+                    val previewView = PreviewView(context)
+                    val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+
+                    cameraProviderFuture.addListener({
+                        val cameraProvider = cameraProviderFuture.get()
+                        val preview = Preview.Builder().build()
+
+                        preview.surfaceProvider = previewView.surfaceProvider
+                        val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+                        cameraProvider.unbindAll()
+                        cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview)
+
+                    }, ContextCompat.getMainExecutor(context))
+                    previewView
+                }
+            )
+        } else {
+            Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Camera permission is required")
+            }
+        }
+
+    }
+
+
+    /*@Composable
     fun ViewCamera(
         modifier: Modifier,
         onTakePhoto: () -> Unit = {},
@@ -75,7 +149,7 @@ class CameraXActivity : ComponentActivity() {
 
         }
 
-    }
+    }*/
 
 
 }
