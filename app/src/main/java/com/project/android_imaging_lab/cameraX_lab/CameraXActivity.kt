@@ -3,6 +3,7 @@ package com.project.android_imaging_lab.cameraX_lab
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -39,6 +40,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import com.project.android_imaging_lab.ui.theme.Android_Imaging_LabTheme
+import java.security.Permissions
 
 class CameraXActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,28 +60,35 @@ class CameraXActivity : ComponentActivity() {
         val context = LocalContext.current
         val lifecycleOwner = LocalLifecycleOwner.current
 
-        var isGranted by remember {
+        var allPermissionsGranted by remember {
             mutableStateOf(
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.CAMERA
-                ) == PackageManager.PERMISSION_GRANTED
+                REQUEST_ALL_PERMISSION.all {
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        it
+                    ) == PackageManager.PERMISSION_GRANTED
+                }
             )
         }
 
         val permissionLauncher = rememberLauncherForActivityResult(
-            ActivityResultContracts.RequestPermission()
-        ) { granted ->
-            isGranted = granted
-        }
-
-        LaunchedEffect(Unit) {
-            if (!isGranted) {
-                permissionLauncher.launch(Manifest.permission.CAMERA)
+            ActivityResultContracts.RequestMultiplePermissions()
+        ) { permissions ->
+            allPermissionsGranted = REQUEST_ALL_PERMISSION.all { permission ->
+                permissions[permission] == true || ContextCompat.checkSelfPermission(
+                    context,
+                    permission
+                ) == PackageManager.PERMISSION_GRANTED
             }
         }
 
-        if (isGranted) {
+        LaunchedEffect(Unit) {
+            if (!allPermissionsGranted) {
+                permissionLauncher.launch(REQUEST_ALL_PERMISSION)
+            }
+        }
+
+        if (allPermissionsGranted) {
             AndroidView(
                 modifier = modifier.fillMaxSize(),
                 factory = { context ->
@@ -103,53 +112,24 @@ class CameraXActivity : ComponentActivity() {
             )
         } else {
             Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Camera permission is required")
+                Text("All permissions are required")
             }
         }
 
     }
 
+    companion object {
 
-    /*@Composable
-    fun ViewCamera(
-        modifier: Modifier,
-        onTakePhoto: () -> Unit = {},
-        onCapturePhoto: () -> Unit = {}
-    ) {
-        Box(modifier.fillMaxSize()) {
-            AndroidView(
-                modifier = modifier.fillMaxSize(),
-                factory = { context ->
-                    PreviewView(context)
-                }
-            )
-
-            Row(
-                modifier.align(Alignment.BottomCenter)
-                    .padding(bottom = 50.dp),
-                horizontalArrangement = Arrangement.spacedBy(100.dp)
-            ) {
-                Button(
-                    onClick = onTakePhoto,
-                    modifier.size(110.dp),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
-                ) {
-                    Text("Take Photo", textAlign = TextAlign.Center)
-                }
-
-                Button(
-                    onClick = onCapturePhoto,
-                    modifier.size(110.dp),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
-                ) {
-                    Text("Start Capture", textAlign = TextAlign.Center)
-                }
-
+        private val REQUEST_ALL_PERMISSION = mutableListOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO
+        ).apply {
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             }
+        }.toTypedArray()
 
-        }
-
-    }*/
+    }
 
 
 }
