@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -14,24 +15,31 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.style.TextAlign
@@ -43,6 +51,7 @@ import com.project.android_imaging_lab.ui.theme.Android_Imaging_LabTheme
 import java.security.Permissions
 
 class CameraXActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -55,7 +64,9 @@ class CameraXActivity : ComponentActivity() {
 
 
     @Composable
-    fun CameraScreen(modifier: Modifier) {
+    fun CameraScreen(
+        modifier: Modifier
+    ) {
 
         val context = LocalContext.current
         val lifecycleOwner = LocalLifecycleOwner.current
@@ -70,6 +81,8 @@ class CameraXActivity : ComponentActivity() {
                 }
             )
         }
+
+        var isCameraClick by remember { mutableStateOf(false) }
 
         val permissionLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
@@ -89,27 +102,61 @@ class CameraXActivity : ComponentActivity() {
         }
 
         if (allPermissionsGranted) {
-            AndroidView(
-                modifier = modifier.fillMaxSize(),
-                factory = { context ->
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .padding(50.dp)
+            ) {
 
-                    val previewView = PreviewView(context)
-                    val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+                if (isCameraClick) {
+                    AndroidView(
+                        modifier = modifier.fillMaxSize(),
+                        factory = { context ->
 
-                    cameraProviderFuture.addListener({
-                        val cameraProvider = cameraProviderFuture.get()
-                        val preview = Preview.Builder().build()
+                            val previewView = PreviewView(context)
+                            val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
 
-                        preview.surfaceProvider = previewView.surfaceProvider
-                        val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                            cameraProviderFuture.addListener({
+                                val cameraProvider = cameraProviderFuture.get()
+                                val preview = Preview.Builder().build()
 
-                        cameraProvider.unbindAll()
-                        cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview)
+                                preview.surfaceProvider = previewView.surfaceProvider
+                                val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
-                    }, ContextCompat.getMainExecutor(context))
-                    previewView
+                                cameraProvider.unbindAll()
+                                cameraProvider.bindToLifecycle(
+                                    lifecycleOwner,
+                                    cameraSelector,
+                                    preview
+                                )
+
+                            }, ContextCompat.getMainExecutor(context))
+                            previewView
+                        }
+                    )
                 }
-            )
+
+                Row(
+                    modifier = modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .padding(24.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Button(
+                        onClick = { isCameraClick = true }
+                    ) {
+                        Text("Camera")
+                    }
+                    Button(
+                        onClick = {}
+                    ) {
+                        Text("Video")
+                    }
+                }
+
+            }
         } else {
             Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("All permissions are required")
@@ -117,6 +164,7 @@ class CameraXActivity : ComponentActivity() {
         }
 
     }
+
 
     companion object {
 
