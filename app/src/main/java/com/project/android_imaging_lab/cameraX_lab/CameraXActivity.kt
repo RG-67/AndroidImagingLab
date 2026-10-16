@@ -137,24 +137,48 @@ class CameraXActivity : ComponentActivity() {
                     )
                 }
 
-                Row(
-                    modifier = modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .padding(24.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Button(
-                        onClick = { isCameraClick = true }
+                if (!isCameraClick) {
+                    Row(
+                        modifier = modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter)
+                            .padding(24.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Camera")
+                        Button(
+                            onClick = { isCameraClick = true }
+                        ) {
+                            Text("Camera")
+                        }
+                        Button(
+                            onClick = {}
+                        ) {
+                            Text("Video")
+                        }
                     }
-                    Button(
-                        onClick = {}
+                } else {
+                    Row(
+                        modifier = modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter)
+                            .padding(24.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Video")
+                        Button(
+                            onClick = { isCameraClick = false }
+                        ) {
+                            Text("Cancel")
+                        }
+                        Button(
+                            onClick = {
+                                takePhoto()
+                            }
+                        ) {
+                            Text("Take Picture")
+                        }
                     }
                 }
+
 
             }
         } else {
@@ -165,9 +189,13 @@ class CameraXActivity : ComponentActivity() {
 
     }
 
+    private fun takePhoto() {
+//        val imageCapture = imageCapture ?: return
+    }
+
 
     companion object {
-
+        private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
         private val REQUEST_ALL_PERMISSION = mutableListOf(
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO
