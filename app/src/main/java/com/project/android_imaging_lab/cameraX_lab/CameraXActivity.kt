@@ -106,6 +106,7 @@ class CameraXActivity : ComponentActivity() {
         }
 
         var isCameraClick by remember { mutableStateOf(false) }
+        var isVideoClick by remember { mutableStateOf(false) }
 
         val permissionLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
@@ -199,7 +200,74 @@ class CameraXActivity : ComponentActivity() {
 
                 }
 
-                if (!isCameraClick) {
+                if (isVideoClick) {
+                    AndroidView(
+                        modifier = modifier.fillMaxSize(),
+                        factory = { context ->
+
+                            val previewView = PreviewView(context)
+                            val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+
+                            cameraProviderFuture.addListener({
+                                val cameraProvider = cameraProviderFuture.get()
+                                val preview = Preview.Builder().build()
+
+                                preview.surfaceProvider = previewView.surfaceProvider
+                                val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                                imageCapture = ImageCapture.Builder().build()
+                                val imageAnalyzer = ImageAnalysis.Builder().build().also {
+                                    it.setAnalyzer(cameraExecutor, LuminosityAnalyzer { luma ->
+                                        Log.d(TAG, "Average luminosity: $luma")
+                                    })
+                                }
+
+                                try {
+                                    cameraProvider.unbindAll()
+                                    /*cameraProvider.bindToLifecycle(
+                                        lifecycleOwner,
+                                        cameraSelector,
+                                        preview
+                                    )*/
+                                    cameraProvider.bindToLifecycle(
+                                        lifecycleOwner,
+                                        cameraSelector,
+                                        preview,
+                                        imageCapture,
+                                        imageAnalyzer
+                                    )
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Use case binding failed", e)
+                                }
+
+                            }, ContextCompat.getMainExecutor(context))
+                            previewView
+                        }
+                    )
+
+                    Row(
+                        modifier = modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter)
+                            .padding(24.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Button(
+                            onClick = { isVideoClick = false }
+                        ) {
+                            Text("Cancel")
+                        }
+                        Button(
+                            onClick = {
+
+                            }
+                        ) {
+                            Text("Start Capture")
+                        }
+                    }
+
+                }
+
+                if (!isCameraClick && !isVideoClick) {
                     Row(
                         modifier = modifier
                             .fillMaxWidth()
@@ -213,7 +281,7 @@ class CameraXActivity : ComponentActivity() {
                             Text("Camera")
                         }
                         Button(
-                            onClick = {}
+                            onClick = { isVideoClick = true }
                         ) {
                             Text("Video")
                         }
