@@ -21,11 +21,16 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.video.MediaStoreOutputOptions
+import androidx.camera.video.Quality
+import androidx.camera.video.QualitySelector
 import androidx.camera.video.Recorder
 import androidx.camera.video.Recording
 import androidx.camera.video.VideoCapture
+import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.content.MediaType
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,6 +61,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.core.content.PermissionChecker
 import androidx.lifecycle.LifecycleOwner
 import com.project.android_imaging_lab.ui.theme.Android_Imaging_LabTheme
 import java.nio.ByteBuffer
@@ -107,6 +113,7 @@ class CameraXActivity : ComponentActivity() {
 
         var isCameraClick by remember { mutableStateOf(false) }
         var isVideoClick by remember { mutableStateOf(false) }
+        var isCaptureVideo by remember { mutableStateOf(false) }
 
         val permissionLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
@@ -213,27 +220,21 @@ class CameraXActivity : ComponentActivity() {
                                 val preview = Preview.Builder().build()
 
                                 preview.surfaceProvider = previewView.surfaceProvider
+                                val recorder = Recorder.Builder().setQualitySelector(
+                                    QualitySelector.from(
+                                        Quality.HIGHEST
+                                    )
+                                ).build()
+                                videoCapture = VideoCapture.withOutput(recorder)
                                 val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-                                imageCapture = ImageCapture.Builder().build()
-                                val imageAnalyzer = ImageAnalysis.Builder().build().also {
-                                    it.setAnalyzer(cameraExecutor, LuminosityAnalyzer { luma ->
-                                        Log.d(TAG, "Average luminosity: $luma")
-                                    })
-                                }
 
                                 try {
                                     cameraProvider.unbindAll()
-                                    /*cameraProvider.bindToLifecycle(
-                                        lifecycleOwner,
-                                        cameraSelector,
-                                        preview
-                                    )*/
                                     cameraProvider.bindToLifecycle(
                                         lifecycleOwner,
                                         cameraSelector,
                                         preview,
-                                        imageCapture,
-                                        imageAnalyzer
+                                        videoCapture
                                     )
                                 } catch (e: Exception) {
                                     Log.e(TAG, "Use case binding failed", e)
@@ -256,12 +257,22 @@ class CameraXActivity : ComponentActivity() {
                         ) {
                             Text("Cancel")
                         }
-                        Button(
-                            onClick = {
-
+                        if (!isCaptureVideo) {
+                            Button(
+                                onClick = {
+                                    isCaptureVideo = captureVideo()
+                                }
+                            ) {
+                                Text("Start Capture")
                             }
-                        ) {
-                            Text("Start Capture")
+                        } else {
+                            Button(
+                                onClick = {
+                                    isCaptureVideo = captureVideo()
+                                }
+                            ) {
+                                Text("Stop Capture")
+                            }
                         }
                     }
 
@@ -295,6 +306,7 @@ class CameraXActivity : ComponentActivity() {
                 Text("All permissions are required")
             }
         }
+
 
     }
 
@@ -335,6 +347,65 @@ class CameraXActivity : ComponentActivity() {
                 }
             }
         )
+    }
+
+
+    private fun captureVideo(): Boolean {
+        val videoCapture = this.videoCapture ?: return false
+        val curRecording = recording
+        if (curRecording != null) {
+            curRecording.stop()
+            recording = null
+            return false
+        }
+        val name =
+            SimpleDateFormat(FILENAME_FORMAT, Locale.US).format(System.currentTimeMillis())
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+            put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
+            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
+                put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/CameraX-Video")
+            }
+        }
+        val mediaStoreOutPutOptions = MediaStoreOutputOptions.Builder(
+            contentResolver,
+            MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+        ).setContentValues(contentValues).build()
+        recording = videoCapture.output.prepareRecording(this, mediaStoreOutPutOptions).apply {
+            if (PermissionChecker.checkSelfPermission(
+                    this@CameraXActivity,
+                    Manifest.permission.RECORD_AUDIO
+                ) == PermissionChecker.PERMISSION_GRANTED
+            ) {
+                withAudioEnabled()
+            }
+        }
+            .start(ContextCompat.getMainExecutor(this)) { recordEvent ->
+                when (recordEvent) {
+
+                    is VideoRecordEvent.Start -> {
+
+                    }
+
+                    is VideoRecordEvent.Finalize -> {
+                        if (!recordEvent.hasError()) {
+                            val msg =
+                                "Video capture succeeded: " + "${recordEvent.outputResults.outputUri}"
+                            Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
+                            Log.d(TAG, msg)
+                        } else {
+                            recording?.close()
+                            recording = null
+                            Log.d(
+                                TAG,
+                                "Video capture ends with error: " + "${recordEvent.error}"
+                            )
+                        }
+                    }
+
+                }
+            }
+        return true
     }
 
 
