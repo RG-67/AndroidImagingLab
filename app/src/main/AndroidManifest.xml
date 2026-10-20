@@ -23,6 +23,9 @@
         android:theme="@style/Theme.Android_Imaging_Lab">
         <activity
             android:name=".cameraX_lab.CameraXActivity"
+            android:exported="false" />
+        <activity
+            android:name=".camera2_lab.Camera2Activity"
             android:exported="true"
             android:theme="@style/Theme.Android_Imaging_Lab">
             <intent-filter>
