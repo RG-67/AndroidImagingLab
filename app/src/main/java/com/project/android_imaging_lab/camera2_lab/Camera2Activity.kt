@@ -1,6 +1,7 @@
 package com.project.android_imaging_lab.camera2_lab
 
 import android.os.Bundle
+import android.widget.Space
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -15,7 +16,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -61,18 +65,31 @@ class Camera2Activity : ComponentActivity() {
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun Camera2Screen(modifier: Modifier) {
+    fun Camera2Screen(modifier: Modifier = Modifier) {
 
         var expanded by remember { mutableStateOf(false) }
         var selectedOption by remember { mutableStateOf("Back Camera") }
 
         val options = listOf("Back Camera", "Front Camera")
 
+        /*CAMERA CAPABILITIES*/
+        var hardwareLevel by remember { mutableStateOf("Full") }
+        var manualSensor by remember { mutableStateOf("Supported") }
+        var autoFocus by remember { mutableStateOf("Supported") }
+        var manualFocus by remember { mutableStateOf("Supported") }
+
+        /*CAMERA INFORMATION*/
+        var cameraId by remember { mutableStateOf("0") }
+        var isoRange by remember { mutableStateOf("100-3200") }
+        var exposureRange by remember { mutableStateOf("100000-1000000000 ns") }
+        var minimumFocusRange by remember { mutableStateOf("10.0 diopters") }
+
         Column(
             modifier
                 .fillMaxSize()
                 .background(Color.Black)
                 .padding(20.dp)
+                .verticalScroll(rememberScrollState())
         ) {
 
             Row(
@@ -183,7 +200,7 @@ class Camera2Activity : ComponentActivity() {
             )
 
             Text(
-                text = "Full",
+                text = hardwareLevel,
                 fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
                 textAlign = TextAlign.Start,
                 color = Color.White,
@@ -211,7 +228,7 @@ class Camera2Activity : ComponentActivity() {
             )
 
             Text(
-                text = "Supported",
+                text = manualSensor,
                 fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
                 textAlign = TextAlign.Start,
                 color = Color.White,
@@ -239,7 +256,7 @@ class Camera2Activity : ComponentActivity() {
             )
 
             Text(
-                text = "Supported",
+                text = autoFocus,
                 fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
                 textAlign = TextAlign.Start,
                 color = Color.White,
@@ -267,7 +284,7 @@ class Camera2Activity : ComponentActivity() {
             )
 
             Text(
-                text = "Supported",
+                text = manualFocus,
                 fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
                 textAlign = TextAlign.Start,
                 color = Color.White,
@@ -292,9 +309,10 @@ class Camera2Activity : ComponentActivity() {
                 color = Color.White,
                 fontStyle = FontStyle.Normal,
                 fontWeight = FontWeight.Bold,
-                modifier = modifier.padding(top = 30.dp)
+                modifier = modifier.padding(top = 50.dp)
             )
 
+            /*CAMERA ID*/
             Row(
                 modifier = modifier
                     .fillMaxWidth()
@@ -311,7 +329,7 @@ class Camera2Activity : ComponentActivity() {
                     modifier = modifier.padding(end = 10.dp)
                 )
                 Text(
-                    text = "0",
+                    text = cameraId,
                     fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
                     textAlign = TextAlign.Start,
                     color = Color.White,
@@ -320,6 +338,7 @@ class Camera2Activity : ComponentActivity() {
                 )
             }
 
+            /*ISO RANGE*/
             Row(
                 modifier = modifier
                     .fillMaxWidth()
@@ -335,7 +354,7 @@ class Camera2Activity : ComponentActivity() {
                     modifier = modifier.padding(end = 10.dp)
                 )
                 Text(
-                    text = "100–3200",
+                    text = isoRange,
                     fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
                     textAlign = TextAlign.Start,
                     color = Color.White,
@@ -344,6 +363,7 @@ class Camera2Activity : ComponentActivity() {
                 )
             }
 
+            /*EXPOSURE RANGE*/
             Row(
                 modifier = modifier
                     .fillMaxWidth()
@@ -359,7 +379,7 @@ class Camera2Activity : ComponentActivity() {
                     modifier = modifier.padding(end = 10.dp)
                 )
                 Text(
-                    text = "100000–1000000000 ns",
+                    text = exposureRange,
                     fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
                     textAlign = TextAlign.Start,
                     color = Color.White,
@@ -368,6 +388,7 @@ class Camera2Activity : ComponentActivity() {
                 )
             }
 
+            /*MINIMUM FOCUS DISTANCE*/
             Row(
                 modifier = modifier
                     .fillMaxWidth()
@@ -383,7 +404,7 @@ class Camera2Activity : ComponentActivity() {
                     modifier = modifier.padding(end = 10.dp)
                 )
                 Text(
-                    text = "10.0 diopters",
+                    text = minimumFocusRange,
                     fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
                     textAlign = TextAlign.Start,
                     color = Color.White,
@@ -392,14 +413,24 @@ class Camera2Activity : ComponentActivity() {
                 )
             }
 
+            /*REFRESH CAPABILITIES BUTTON*/
             Button(
                 onClick = {},
-                modifier = modifier.fillMaxWidth()
-                    .height(40.dp)
-                    .padding(top = 10.dp)
+                colors = ButtonColors(
+                    containerColor = Color.White,
+                    contentColor = Color.Black,
+                    disabledContainerColor = Color.White,
+                    disabledContentColor = Color.Black
+                ),
+                modifier = modifier
+                    .fillMaxWidth()
+                    .padding(top = 50.dp)
+                    .height(55.dp)
             ) {
                 Text("Refresh Capabilities")
             }
+
+            Spacer(modifier = modifier.height(50.dp))
 
 
         }
