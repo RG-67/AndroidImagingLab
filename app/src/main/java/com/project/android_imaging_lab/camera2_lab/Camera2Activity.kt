@@ -73,16 +73,16 @@ class Camera2Activity : ComponentActivity() {
         val options = listOf("Back Camera", "Front Camera")
 
         /*CAMERA CAPABILITIES*/
-        var hardwareLevel by remember { mutableStateOf("Full") }
-        var manualSensor by remember { mutableStateOf("Supported") }
-        var autoFocus by remember { mutableStateOf("Supported") }
-        var manualFocus by remember { mutableStateOf("Supported") }
+        var hardwareLevel by remember { mutableStateOf(""/*Full*/) }
+        var manualSensor by remember { mutableStateOf(""/*Supported*/) }
+        var autoFocus by remember { mutableStateOf(""/*Supported*/) }
+        var manualFocus by remember { mutableStateOf(""/*Supported*/) }
 
         /*CAMERA INFORMATION*/
-        var cameraId by remember { mutableStateOf("0") }
-        var isoRange by remember { mutableStateOf("100-3200") }
-        var exposureRange by remember { mutableStateOf("100000-1000000000 ns") }
-        var minimumFocusRange by remember { mutableStateOf("10.0 diopters") }
+        var cameraId by remember { mutableStateOf(""/*0*/) }
+        var isoRange by remember { mutableStateOf(""/*100-3200*/) }
+        var exposureRange by remember { mutableStateOf(""/*100000-1000000000 ns*/) }
+        var minimumFocusRange by remember { mutableStateOf(""/*10.0 diopters*/) }
 
         Column(
             modifier
@@ -419,9 +419,10 @@ class Camera2Activity : ComponentActivity() {
                 colors = ButtonColors(
                     containerColor = Color.White,
                     contentColor = Color.Black,
-                    disabledContainerColor = Color.White,
+                    disabledContainerColor = Color.Gray,
                     disabledContentColor = Color.Black
                 ),
+                enabled = hardwareLevel.isNotEmpty(),
                 modifier = modifier
                     .fillMaxWidth()
                     .padding(top = 50.dp)
