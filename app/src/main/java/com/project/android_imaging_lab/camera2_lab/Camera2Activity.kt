@@ -1,12 +1,17 @@
 package com.project.android_imaging_lab.camera2_lab
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Space
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +25,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -30,14 +37,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -46,62 +56,228 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.project.android_imaging_lab.ui.theme.Android_Imaging_LabTheme
+import com.project.android_imaging_lab.utils.camera2_util.Camera2Inspector
+import com.project.android_imaging_lab.utils.camera2_util.CameraCapabilities
+import com.project.android_imaging_lab.utils.camera2_util.CameraOption
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.cancellation.CancellationException
 
 class Camera2Activity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         enableEdgeToEdge()
 
         setContent {
             Android_Imaging_LabTheme {
-                Camera2Screen(Modifier)
+                Camera2Screen()
             }
         }
-
     }
-
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun Camera2Screen(modifier: Modifier = Modifier) {
+    fun Camera2Screen(
+        modifier: Modifier = Modifier
+    ) {
 
-        var expanded by remember { mutableStateOf(false) }
-        var selectedOption by remember { mutableStateOf("Back Camera") }
+        val context = LocalContext.current
+        val coroutineScope = rememberCoroutineScope()
 
-        val options = listOf("Back Camera", "Front Camera")
+        val inspector = remember {
+            Camera2Inspector(context)
+        }
 
-        /*CAMERA CAPABILITIES*/
-        var hardwareLevel by remember { mutableStateOf(""/*Full*/) }
-        var manualSensor by remember { mutableStateOf(""/*Supported*/) }
-        var autoFocus by remember { mutableStateOf(""/*Supported*/) }
-        var manualFocus by remember { mutableStateOf(""/*Supported*/) }
+        /* CAMERA SELECTION */
 
-        /*CAMERA INFORMATION*/
-        var cameraId by remember { mutableStateOf(""/*0*/) }
-        var isoRange by remember { mutableStateOf(""/*100-3200*/) }
-        var exposureRange by remember { mutableStateOf(""/*100000-1000000000 ns*/) }
-        var minimumFocusRange by remember { mutableStateOf(""/*10.0 diopters*/) }
+        var expanded by remember {
+            mutableStateOf(false)
+        }
+
+        var cameraOptions by remember {
+            mutableStateOf<List<CameraOption>>(emptyList())
+        }
+
+        var selectedCameraId by remember {
+            mutableStateOf<String?>(null)
+        }
+
+        /* CAMERA CAPABILITIES */
+
+        var cameraCapabilities by remember {
+            mutableStateOf(CameraCapabilities())
+        }
+
+        /* UI STATE */
+
+        var errorMessage by remember {
+            mutableStateOf<String?>(null)
+        }
+
+        var isLoading by remember {
+            mutableStateOf(false)
+        }
+
+        var hasCameraPermission by remember {
+            mutableStateOf(
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.CAMERA
+                ) == PackageManager.PERMISSION_GRANTED
+            )
+        }
+
+        /*
+         * CAMERA PERMISSION
+         */
+
+        val permissionLauncher =
+            rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestPermission()
+            ) { granted ->
+
+                hasCameraPermission = granted
+
+                if (granted) {
+                    errorMessage = null
+                } else {
+                    errorMessage =
+                        "Camera permission is required."
+                }
+            }
+
+        /*
+         * LOAD CAPABILITIES
+         *
+         * Camera characteristics are retrieved on the IO dispatcher.
+         */
+
+        suspend fun loadCapabilities(cameraId: String) {
+
+            isLoading = true
+            errorMessage = null
+
+            try {
+
+                val capabilities = withContext(Dispatchers.IO) {
+                    inspector.getCapabilities(cameraId)
+                }
+
+                cameraCapabilities = capabilities
+
+            } catch (e: CancellationException) {
+
+                throw e
+
+            } catch (e: Exception) {
+
+                errorMessage =
+                    e.message ?: "Unable to retrieve camera capabilities."
+
+            } finally {
+
+                isLoading = false
+            }
+        }
+
+        /*
+         * REQUEST CAMERA PERMISSION
+         */
+
+        LaunchedEffect(Unit) {
+
+            if (!hasCameraPermission) {
+                permissionLauncher.launch(
+                    Manifest.permission.CAMERA
+                )
+            }
+        }
+
+        /*
+         * DISCOVER CAMERAS
+         */
+
+        LaunchedEffect(hasCameraPermission) {
+
+            if (!hasCameraPermission) {
+                return@LaunchedEffect
+            }
+
+            isLoading = true
+            errorMessage = null
+
+            try {
+
+                val cameras = withContext(Dispatchers.IO) {
+                    inspector.getAvailableCameras()
+                }
+
+                cameraOptions = cameras
+
+                val initialCamera = cameras.firstOrNull {
+                    it.name.startsWith("Back Camera")
+                } ?: cameras.firstOrNull()
+
+                selectedCameraId = initialCamera?.id
+
+                if (initialCamera != null) {
+
+                    loadCapabilities(initialCamera.id)
+
+                } else {
+
+                    cameraCapabilities = CameraCapabilities()
+
+                    errorMessage = "No cameras available."
+                }
+
+            } catch (e: CancellationException) {
+
+                throw e
+
+            } catch (e: Exception) {
+
+                errorMessage =
+                    e.message ?: "Unable to discover cameras."
+
+            } finally {
+
+                isLoading = false
+            }
+        }
+
+        /*
+         * MAIN SCREEN
+         */
 
         Column(
-            modifier
+            modifier = modifier
                 .fillMaxSize()
                 .background(Color.Black)
                 .padding(20.dp)
                 .verticalScroll(rememberScrollState())
         ) {
 
+            /*
+             * APP TITLE
+             */
+
             Row(
-                modifier
+                modifier = Modifier
                     .fillMaxWidth()
-                    .align(Alignment.CenterHorizontally)
-                    .padding(bottom = 10.dp)
+                    .padding(bottom = 10.dp),
+                horizontalArrangement = Arrangement.Center
             ) {
+
                 Text(
                     text = "Camera2 Lab",
-                    modifier.fillMaxWidth(),
-                    fontSize = TextUnit(value = 20f, type = TextUnitType.Sp),
+                    modifier = Modifier.fillMaxWidth(),
+                    fontSize = 20.sp,
                     textAlign = TextAlign.Center,
                     color = Color.White,
                     fontStyle = FontStyle.Normal,
@@ -109,333 +285,388 @@ class Camera2Activity : ComponentActivity() {
                 )
             }
 
-            Spacer(
-                modifier
-                    .fillMaxWidth()
-                    .height(2.dp)
-                    .background(color = Color.White)
-            )
+            DividerLine()
 
-            /*CAMERA SELECTION*/
-            Text(
+            /*
+             * CAMERA SELECTION
+             */
+
+            SectionTitle(
                 text = "CAMERA SELECTION",
-                fontSize = TextUnit(value = 16f, type = TextUnitType.Sp),
-                textAlign = TextAlign.Start,
-                color = Color.White,
-                fontStyle = FontStyle.Normal,
-                fontWeight = FontWeight.Bold,
-                modifier = modifier.padding(top = 50.dp)
+                modifier = Modifier.padding(top = 30.dp)
             )
 
             Text(
                 text = "Select Camera",
-                fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
-                textAlign = TextAlign.Start,
+                fontSize = 15.sp,
                 color = Color.White,
-                fontStyle = FontStyle.Normal,
-                fontWeight = FontWeight.Normal,
-                modifier = modifier.padding(top = 20.dp)
+                modifier = Modifier.padding(top = 20.dp)
             )
 
             ExposedDropdownMenuBox(
                 expanded = expanded,
-                onExpandedChange = { expanded = !expanded },
-                modifier = modifier.padding(top = 10.dp, bottom = 20.dp)
-            ) {
-                TextField(
-                    value = selectedOption,
-                    onValueChange = {},
-                    readOnly = true,
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    colors = ExposedDropdownMenuDefaults.textFieldColors(),
-                    modifier = modifier
-                        .fillMaxWidth()
-                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                onExpandedChange = {
+                    if (cameraOptions.isNotEmpty()) {
+                        expanded = !expanded
+                    }
+                },
+                modifier = Modifier.padding(
+                    top = 10.dp,
+                    bottom = 20.dp
                 )
+            ) {
+
+                TextField(
+                    value = cameraOptions.firstOrNull {
+                        it.id == selectedCameraId
+                    }?.name ?: "No camera selected",
+
+                    onValueChange = {},
+
+                    readOnly = true,
+
+                    singleLine = true,
+
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(
+                            expanded = expanded
+                        )
+                    },
+
+                    colors =
+                        ExposedDropdownMenuDefaults.textFieldColors(),
+
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(
+                            ExposedDropdownMenuAnchorType.PrimaryNotEditable
+                        )
+                )
+
                 ExposedDropdownMenu(
                     expanded = expanded,
-                    onDismissRequest = { expanded = false }
+                    onDismissRequest = {
+                        expanded = false
+                    }
                 ) {
-                    options.forEach { option ->
+
+                    cameraOptions.forEach { camera ->
+
                         DropdownMenuItem(
-                            text = { Text(option, color = MaterialTheme.colorScheme.onSurface) },
-                            onClick = {
-                                selectedOption = option
-                                expanded = false
+                            text = {
+                                Text(camera.name)
                             },
-                            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+
+                            onClick = {
+
+                                expanded = false
+
+                                selectedCameraId = camera.id
+
+                                coroutineScope.launch {
+                                    loadCapabilities(camera.id)
+                                }
+                            },
+
+                            contentPadding =
+                                ExposedDropdownMenuDefaults.ItemContentPadding
                         )
                     }
                 }
             }
 
-            Spacer(
-                modifier
-                    .fillMaxWidth()
-                    .height(2.dp)
-                    .background(color = Color.White)
-            )
+            /*
+             * LOADING INDICATOR
+             */
 
-            /*CAMERA CAPABILITIES*/
+            if (isLoading) {
 
-            /*HARDWARE LEVEL*/
-            Text(
+                CircularProgressIndicator(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(vertical = 12.dp),
+                    color = Color.White
+                )
+            }
+
+            /*
+             * ERROR MESSAGE
+             */
+
+            errorMessage?.let { message ->
+
+                Text(
+                    text = message,
+                    fontSize = 14.sp,
+                    color = Color.Red,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+
+            DividerLine()
+
+            /*
+             * CAMERA CAPABILITIES
+             */
+
+            SectionTitle(
                 text = "CAMERA CAPABILITIES",
-                fontSize = TextUnit(value = 16f, type = TextUnitType.Sp),
-                textAlign = TextAlign.Start,
-                color = Color.White,
-                fontStyle = FontStyle.Normal,
-                fontWeight = FontWeight.Bold,
-                modifier = modifier.padding(top = 50.dp)
+                modifier = Modifier.padding(top = 30.dp)
             )
 
-            Text(
-                text = "Hardware Level",
-                fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
-                textAlign = TextAlign.Start,
-                color = Color.White,
-                fontStyle = FontStyle.Normal,
-                fontWeight = FontWeight.Normal,
-                modifier = modifier.padding(top = 20.dp)
+            /*
+             * HARDWARE LEVEL
+             */
+
+            InformationItem(
+                title = "Hardware Level",
+                value = cameraCapabilities.hardwareLevel
             )
 
-            Text(
-                text = hardwareLevel,
-                fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
-                textAlign = TextAlign.Start,
-                color = Color.White,
-                fontStyle = FontStyle.Normal,
-                fontWeight = FontWeight.Normal,
-                modifier = modifier.padding(top = 5.dp, bottom = 10.dp)
+            DividerLine()
+
+            /*
+             * MANUAL SENSOR
+             */
+
+            InformationItem(
+                title = "Manual Sensor",
+                value = cameraCapabilities.manualSensor
             )
 
-            Spacer(
-                modifier
-                    .fillMaxWidth()
-                    .height(2.dp)
-                    .background(color = Color.White)
+            DividerLine()
+
+            /*
+             * AUTOFOCUS
+             */
+
+            InformationItem(
+                title = "Autofocus",
+                value = cameraCapabilities.autoFocus
             )
 
-            /*MANUAL SENSOR*/
-            Text(
-                text = "Manual Sensor",
-                fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
-                textAlign = TextAlign.Start,
-                color = Color.White,
-                fontStyle = FontStyle.Normal,
-                fontWeight = FontWeight.Normal,
-                modifier = modifier.padding(top = 20.dp)
+            DividerLine()
+
+            /*
+             * MANUAL FOCUS
+             */
+
+            InformationItem(
+                title = "Manual Focus",
+                value = cameraCapabilities.manualFocus
             )
 
-            Text(
-                text = manualSensor,
-                fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
-                textAlign = TextAlign.Start,
-                color = Color.White,
-                fontStyle = FontStyle.Normal,
-                fontWeight = FontWeight.Normal,
-                modifier = modifier.padding(top = 5.dp, bottom = 10.dp)
-            )
+            DividerLine()
 
-            Spacer(
-                modifier
-                    .fillMaxWidth()
-                    .height(2.dp)
-                    .background(color = Color.White)
-            )
+            /*
+             * CAMERA INFORMATION
+             */
 
-            /*AUTOFOCUS*/
-            Text(
-                text = "Autofocus",
-                fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
-                textAlign = TextAlign.Start,
-                color = Color.White,
-                fontStyle = FontStyle.Normal,
-                fontWeight = FontWeight.Normal,
-                modifier = modifier.padding(top = 20.dp)
-            )
-
-            Text(
-                text = autoFocus,
-                fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
-                textAlign = TextAlign.Start,
-                color = Color.White,
-                fontStyle = FontStyle.Normal,
-                fontWeight = FontWeight.Normal,
-                modifier = modifier.padding(top = 5.dp, bottom = 10.dp)
-            )
-
-            Spacer(
-                modifier
-                    .fillMaxWidth()
-                    .height(2.dp)
-                    .background(color = Color.White)
-            )
-
-            /*MANUAL FOCUS*/
-            Text(
-                text = "Manual Focus",
-                fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
-                textAlign = TextAlign.Start,
-                color = Color.White,
-                fontStyle = FontStyle.Normal,
-                fontWeight = FontWeight.Normal,
-                modifier = modifier.padding(top = 20.dp)
-            )
-
-            Text(
-                text = manualFocus,
-                fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
-                textAlign = TextAlign.Start,
-                color = Color.White,
-                fontStyle = FontStyle.Normal,
-                fontWeight = FontWeight.Normal,
-                modifier = modifier.padding(top = 5.dp, bottom = 10.dp)
-            )
-
-
-            Spacer(
-                modifier
-                    .fillMaxWidth()
-                    .height(2.dp)
-                    .background(color = Color.White)
-            )
-
-            /*CAMERA INFORMATION*/
-            Text(
+            SectionTitle(
                 text = "CAMERA INFORMATION",
-                fontSize = TextUnit(value = 16f, type = TextUnitType.Sp),
-                textAlign = TextAlign.Start,
-                color = Color.White,
-                fontStyle = FontStyle.Normal,
-                fontWeight = FontWeight.Bold,
-                modifier = modifier.padding(top = 50.dp)
+                modifier = Modifier.padding(top = 30.dp)
             )
 
-            /*CAMERA ID*/
-            Row(
-                modifier = modifier
-                    .fillMaxWidth()
-                    .padding(top = 10.dp)
-                    .align(Alignment.Start)
-            ) {
-                Text(
-                    text = "Camera ID:",
-                    fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
-                    textAlign = TextAlign.Start,
-                    color = Color.White,
-                    fontStyle = FontStyle.Normal,
-                    fontWeight = FontWeight.Normal,
-                    modifier = modifier.padding(end = 10.dp)
-                )
-                Text(
-                    text = cameraId,
-                    fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
-                    textAlign = TextAlign.Start,
-                    color = Color.White,
-                    fontStyle = FontStyle.Normal,
-                    fontWeight = FontWeight.Normal,
-                )
-            }
+            /*
+             * CAMERA ID
+             */
 
-            /*ISO RANGE*/
-            Row(
-                modifier = modifier
-                    .fillMaxWidth()
-                    .align(Alignment.Start)
-            ) {
-                Text(
-                    text = "ISO Range:",
-                    fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
-                    textAlign = TextAlign.Start,
-                    color = Color.White,
-                    fontStyle = FontStyle.Normal,
-                    fontWeight = FontWeight.Normal,
-                    modifier = modifier.padding(end = 10.dp)
-                )
-                Text(
-                    text = isoRange,
-                    fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
-                    textAlign = TextAlign.Start,
-                    color = Color.White,
-                    fontStyle = FontStyle.Normal,
-                    fontWeight = FontWeight.Normal,
-                )
-            }
+            InformationRow(
+                title = "Camera ID:",
+                value = cameraCapabilities.cameraId
+            )
 
-            /*EXPOSURE RANGE*/
-            Row(
-                modifier = modifier
-                    .fillMaxWidth()
-                    .align(Alignment.Start)
-            ) {
-                Text(
-                    text = "Exposure Range:",
-                    fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
-                    textAlign = TextAlign.Start,
-                    color = Color.White,
-                    fontStyle = FontStyle.Normal,
-                    fontWeight = FontWeight.Normal,
-                    modifier = modifier.padding(end = 10.dp)
-                )
-                Text(
-                    text = exposureRange,
-                    fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
-                    textAlign = TextAlign.Start,
-                    color = Color.White,
-                    fontStyle = FontStyle.Normal,
-                    fontWeight = FontWeight.Normal,
-                )
-            }
+            /*
+             * ISO RANGE
+             */
 
-            /*MINIMUM FOCUS DISTANCE*/
-            Row(
-                modifier = modifier
-                    .fillMaxWidth()
-                    .align(Alignment.Start)
-            ) {
-                Text(
-                    text = "Minimum Focus Distance:",
-                    fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
-                    textAlign = TextAlign.Start,
-                    color = Color.White,
-                    fontStyle = FontStyle.Normal,
-                    fontWeight = FontWeight.Normal,
-                    modifier = modifier.padding(end = 10.dp)
-                )
-                Text(
-                    text = minimumFocusRange,
-                    fontSize = TextUnit(value = 15f, type = TextUnitType.Sp),
-                    textAlign = TextAlign.Start,
-                    color = Color.White,
-                    fontStyle = FontStyle.Normal,
-                    fontWeight = FontWeight.Normal,
-                )
-            }
+            InformationRow(
+                title = "ISO Range:",
+                value = cameraCapabilities.isoRange
+            )
 
-            /*REFRESH CAPABILITIES BUTTON*/
+            /*
+             * EXPOSURE RANGE
+             */
+
+            InformationRow(
+                title = "Exposure Range:",
+                value = cameraCapabilities.exposureRange
+            )
+
+            /*
+             * MINIMUM FOCUS DISTANCE
+             */
+
+            InformationRow(
+                title = "Minimum Focus Distance:",
+                value = cameraCapabilities.minimumFocusDistance
+            )
+
+            /*
+             * REFRESH CAPABILITIES
+             */
+
             Button(
-                onClick = {},
-                colors = ButtonColors(
+                onClick = {
+
+                    val cameraId = selectedCameraId
+
+                    if (
+                        cameraId != null &&
+                        hasCameraPermission
+                    ) {
+
+                        coroutineScope.launch {
+                            loadCapabilities(cameraId)
+                        }
+                    }
+                },
+
+                enabled = selectedCameraId != null &&
+                        hasCameraPermission &&
+                        !isLoading,
+
+                colors = ButtonDefaults.buttonColors(
                     containerColor = Color.White,
                     contentColor = Color.Black,
                     disabledContainerColor = Color.Gray,
                     disabledContentColor = Color.Black
                 ),
-                enabled = hardwareLevel.isNotEmpty(),
-                modifier = modifier
+
+                modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 50.dp)
+                    .padding(top = 30.dp)
                     .height(55.dp)
+
             ) {
-                Text("Refresh Capabilities")
+
+                Text(
+                    text = if (isLoading) {
+                        "Refreshing..."
+                    } else {
+                        "Refresh Capabilities"
+                    }
+                )
             }
 
-            Spacer(modifier = modifier.height(50.dp))
+            /*
+             * PERMISSION RETRY
+             */
 
+            if (!hasCameraPermission) {
 
+                Button(
+                    onClick = {
+                        permissionLauncher.launch(
+                            Manifest.permission.CAMERA
+                        )
+                    },
+
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                ) {
+
+                    Text("Grant Camera Permission")
+                }
+            }
+
+            Spacer(
+                modifier = Modifier.height(30.dp)
+            )
         }
     }
 
+    /*
+     * REUSABLE UI COMPONENTS
+     */
 
+    @Composable
+    private fun DividerLine() {
+
+        Spacer(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(Color.White)
+        )
+    }
+
+    @Composable
+    private fun SectionTitle(
+        text: String,
+        modifier: Modifier = Modifier
+    ) {
+
+        Text(
+            text = text,
+            fontSize = 16.sp,
+            textAlign = TextAlign.Start,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            modifier = modifier.padding(bottom = 5.dp)
+        )
+    }
+
+    @Composable
+    private fun InformationItem(
+        title: String,
+        value: String
+    ) {
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    top = 15.dp,
+                    bottom = 12.dp
+                )
+        ) {
+
+            Text(
+                text = title,
+                fontSize = 15.sp,
+                color = Color.White,
+                fontWeight = FontWeight.Normal
+            )
+
+            Text(
+                text = value,
+                fontSize = 15.sp,
+                color = Color.White,
+                modifier = Modifier.padding(top = 5.dp)
+            )
+        }
+    }
+
+    @Composable
+    private fun InformationRow(
+        title: String,
+        value: String
+    ) {
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+
+            Text(
+                text = title,
+                fontSize = 14.sp,
+                color = Color.White,
+                modifier = Modifier.weight(1f)
+            )
+
+            Text(
+                text = value,
+                fontSize = 14.sp,
+                color = Color.White,
+                textAlign = TextAlign.End,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
 }
