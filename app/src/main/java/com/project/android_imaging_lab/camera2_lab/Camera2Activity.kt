@@ -1,6 +1,7 @@
 package com.project.android_imaging_lab.camera2_lab
 
 import android.Manifest
+import android.R
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Space
@@ -89,6 +90,7 @@ class Camera2Activity : ComponentActivity() {
         val context = LocalContext.current
         val coroutineScope = rememberCoroutineScope()
 
+
         val inspector = remember {
             Camera2Inspector(context)
         }
@@ -112,6 +114,12 @@ class Camera2Activity : ComponentActivity() {
         var cameraCapabilities by remember {
             mutableStateOf(CameraCapabilities())
         }
+
+        /* STAGE 2.2 — PREVIEW STATE */
+
+        var isPreviewRequested by remember { mutableStateOf(false) }
+        var isPreviewRunning by remember { mutableStateOf(false) }
+        var previewError by remember { mutableStateOf<String?>(null) }
 
         /* UI STATE */
 
@@ -401,6 +409,40 @@ class Camera2Activity : ComponentActivity() {
                     color = Color.Red,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
+            }
+
+            DividerLine()
+
+            /*
+            * STAGE 2.2 — CAMERA PREVIEW
+            */
+
+            SectionTitle("CAMERA PREVIEW", modifier = Modifier.padding(top = 25.dp))
+
+            Box(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .height(300.dp)
+                    .padding(top = 15.dp, bottom = 15.dp)
+                    .background(Color.DarkGray),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isPreviewRunning) {
+                    // TODO
+                    // Display existing Camera2Preview
+                } else {
+                    Text(
+                        text = if (isPreviewRequested) {
+                            "OPENING CAMERA....."
+                        } else {
+                            "CAMERA NOT OPEN"
+                        },
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Normal,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
 
             DividerLine()
