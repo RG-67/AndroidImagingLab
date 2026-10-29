@@ -423,7 +423,7 @@ class Camera2Activity : ComponentActivity() {
                 modifier = modifier
                     .fillMaxWidth()
                     .height(300.dp)
-                    .padding(top = 15.dp, bottom = 15.dp)
+                    .padding(top = 15.dp)
                     .background(Color.DarkGray),
                 contentAlignment = Alignment.Center
             ) {
@@ -443,9 +443,22 @@ class Camera2Activity : ComponentActivity() {
                         textAlign = TextAlign.Center
                     )
                 }
+
             }
 
+            Text(
+                text = "[AUTO]",
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Normal,
+                textAlign = TextAlign.End,
+                modifier = modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 15.dp)
+            )
+
             DividerLine()
+
 
             /*
              * CAMERA CAPABILITIES
@@ -549,47 +562,81 @@ class Camera2Activity : ComponentActivity() {
              * REFRESH CAPABILITIES
              */
 
-            Button(
-                onClick = {
-
-                    val cameraId = selectedCameraId
-
-                    if (
-                        cameraId != null &&
-                        hasCameraPermission
-                    ) {
-
-                        coroutineScope.launch {
-                            loadCapabilities(cameraId)
-                        }
-                    }
-                },
-
-                enabled = selectedCameraId != null &&
-                        hasCameraPermission &&
-                        !isLoading,
-
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Color.Black,
-                    disabledContainerColor = Color.Gray,
-                    disabledContentColor = Color.Black
-                ),
-
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 30.dp)
-                    .height(55.dp)
-
+            Row(
+                modifier = modifier.fillMaxWidth()
             ) {
 
-                Text(
-                    text = if (isLoading) {
-                        "Refreshing..."
-                    } else {
-                        "Refresh Capabilities"
-                    }
-                )
+                Button(
+                    onClick = {
+
+                        val cameraId = selectedCameraId
+
+                        if (
+                            cameraId != null &&
+                            hasCameraPermission
+                        ) {
+
+                            coroutineScope.launch {
+                                loadCapabilities(cameraId)
+                            }
+                        }
+                    },
+
+                    enabled = selectedCameraId != null &&
+                            hasCameraPermission &&
+                            !isLoading,
+
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = Color.Black,
+                        disabledContainerColor = Color.Gray,
+                        disabledContentColor = Color.Black
+                    ),
+
+                    modifier = Modifier
+                        .padding(top = 30.dp)
+                        .height(55.dp)
+                        .weight(weight = 1f)
+                ) {
+
+                    Text(
+                        text = if (isLoading) {
+                            "Refreshing..."
+                        } else {
+                            "Refresh Capabilities"
+                        }
+                    )
+                }
+
+                Spacer(modifier = modifier.padding(horizontal = 5.dp))
+
+                Button(
+                    onClick = {
+
+                    },
+
+                    enabled = selectedCameraId != null &&
+                            hasCameraPermission &&
+                            !isLoading,
+
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = Color.Black,
+                        disabledContainerColor = Color.Gray,
+                        disabledContentColor = Color.Black
+                    ),
+
+                    modifier = Modifier
+                        .padding(top = 30.dp)
+                        .height(55.dp)
+                        .weight(weight = 1f)
+                ) {
+
+                    Text(
+                        text = "Capture Photo"
+                    )
+                }
+
             }
 
             /*
