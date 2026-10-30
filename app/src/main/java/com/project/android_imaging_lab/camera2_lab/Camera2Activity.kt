@@ -615,9 +615,7 @@ class Camera2Activity : ComponentActivity() {
 
                     },
 
-                    enabled = selectedCameraId != null &&
-                            hasCameraPermission &&
-                            !isLoading,
+                    enabled = true,
 
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.White,
