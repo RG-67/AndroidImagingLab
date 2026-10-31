@@ -500,6 +500,7 @@ class Camera2Activity : ComponentActivity() {
                 value = cameraCapabilities.autoFocus
             )
 
+
             DividerLine()
 
             /*
