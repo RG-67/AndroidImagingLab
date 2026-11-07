@@ -3,6 +3,7 @@ package com.project.android_imaging_lab.utils.camera2_util
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.ImageFormat
 import android.graphics.Rect
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraCaptureSession
@@ -10,10 +11,12 @@ import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CameraMetadata
+import android.hardware.camera2.CaptureFailure
 import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.params.MeteringRectangle
 import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.camera2.params.SessionConfiguration
+import android.media.ImageReader
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
@@ -33,6 +36,8 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 import java.util.concurrent.Executor
 import kotlin.coroutines.resume
 
@@ -42,7 +47,8 @@ private const val TAG = "BaseCamera2Controller"
 @Stable
 abstract class BaseCamera2Controller(
     protected val context: Context,
-    val isFrontCamera: Boolean
+//    val isFrontCamera: Boolean
+    private val selectedCameraId: String
 ) {
 
     var surfaceRequest: ViewfinderSurfaceRequest? by mutableStateOf(null)
@@ -71,7 +77,7 @@ abstract class BaseCamera2Controller(
     protected open val previewSize: Size = Size(1920, 1080)
 
     private fun findCameraId(): String? {
-        val targetFacing = if (isFrontCamera) {
+        /*val targetFacing = if (isFrontCamera) {
             CameraCharacteristics.LENS_FACING_FRONT
         } else {
             CameraCharacteristics.LENS_FACING_BACK
@@ -79,6 +85,9 @@ abstract class BaseCamera2Controller(
         return cameraManager.cameraIdList.firstOrNull { id ->
             cameraManager.getCameraCharacteristics(id)
                 .get(CameraCharacteristics.LENS_FACING) == targetFacing
+        }*/
+        return selectedCameraId.takeIf {
+            it in cameraManager.cameraIdList
         }
     }
 
@@ -333,6 +342,7 @@ abstract class BaseCamera2Controller(
                 else -> 0
             }
     }
+
 
 
 }

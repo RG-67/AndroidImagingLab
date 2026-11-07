@@ -1,16 +1,13 @@
 package com.project.android_imaging_lab.camera2_lab
 
 import android.Manifest
-import android.R
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.widget.Space
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,11 +18,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -33,10 +28,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,24 +40,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.unit.TextUnit
-import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.project.android_imaging_lab.ui.theme.Android_Imaging_LabTheme
 import com.project.android_imaging_lab.utils.camera2_util.Camera2Inspector
+import com.project.android_imaging_lab.utils.camera2_util.Camera2Preview
+import com.project.android_imaging_lab.utils.camera2_util.Camera2PreviewController
 import com.project.android_imaging_lab.utils.camera2_util.CameraCapabilities
 import com.project.android_imaging_lab.utils.camera2_util.CameraOption
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
 
 class Camera2Activity : ComponentActivity() {
@@ -95,6 +87,19 @@ class Camera2Activity : ComponentActivity() {
             Camera2Inspector(context)
         }
 
+        var capturedPhoto by remember {
+            mutableStateOf<File?>(null)
+        }
+
+        var captureMessage by remember {
+            mutableStateOf<String?>(null)
+        }
+
+        var isCapturing by remember {
+            mutableStateOf(false)
+        }
+
+
         /* CAMERA SELECTION */
 
         var expanded by remember {
@@ -117,7 +122,7 @@ class Camera2Activity : ComponentActivity() {
 
         /* STAGE 2.2 — PREVIEW STATE */
 
-        var isPreviewRequested by remember { mutableStateOf(false) }
+        var isPreviewRequested by remember { mutableStateOf(true) }
         var isPreviewRunning by remember { mutableStateOf(false) }
         var previewError by remember { mutableStateOf<String?>(null) }
 
@@ -138,6 +143,15 @@ class Camera2Activity : ComponentActivity() {
                     Manifest.permission.CAMERA
                 ) == PackageManager.PERMISSION_GRANTED
             )
+        }
+
+        val previewController = remember(selectedCameraId) {
+            selectedCameraId?.let { cameraId ->
+                Camera2PreviewController(
+                    context = context,
+                    cameraId = cameraId
+                )
+            }
         }
 
         /*
@@ -427,16 +441,14 @@ class Camera2Activity : ComponentActivity() {
                     .background(Color.DarkGray),
                 contentAlignment = Alignment.Center
             ) {
-                if (isPreviewRunning) {
-                    // TODO
-                    // Display existing Camera2Preview
+                if (isPreviewRequested && previewController != null) {
+                    Camera2Preview(
+                        controller = previewController,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 } else {
                     Text(
-                        text = if (isPreviewRequested) {
-                            "OPENING CAMERA....."
-                        } else {
-                            "CAMERA NOT OPEN"
-                        },
+                        text = "CAMERA NOT OPEN",
                         color = Color.White,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Normal,
@@ -560,22 +572,24 @@ class Camera2Activity : ComponentActivity() {
             )
 
             /*
-             * REFRESH CAPABILITIES
+             * REFRESH CAPABILITIES AND CAPTURE PHOTO
              */
 
             Row(
-                modifier = modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 30.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+
+                // REFRESH CAPABILITIES BUTTON
 
                 Button(
                     onClick = {
 
                         val cameraId = selectedCameraId
 
-                        if (
-                            cameraId != null &&
-                            hasCameraPermission
-                        ) {
+                        if (cameraId != null && hasCameraPermission) {
 
                             coroutineScope.launch {
                                 loadCapabilities(cameraId)
@@ -595,9 +609,8 @@ class Camera2Activity : ComponentActivity() {
                     ),
 
                     modifier = Modifier
-                        .padding(top = 30.dp)
+                        .weight(1f)
                         .height(55.dp)
-                        .weight(weight = 1f)
                 ) {
 
                     Text(
@@ -605,18 +618,47 @@ class Camera2Activity : ComponentActivity() {
                             "Refreshing..."
                         } else {
                             "Refresh Capabilities"
-                        }
+                        },
+                        fontSize = 12.sp
                     )
                 }
 
-                Spacer(modifier = modifier.padding(horizontal = 5.dp))
+
+                // CAPTURE PHOTO BUTTON
 
                 Button(
                     onClick = {
 
+                        if (previewController != null && !isCapturing) {
+
+                            isCapturing = true
+                            captureMessage = null
+
+                            previewController.capturePhoto(
+
+                                onSuccess = { file ->
+
+                                    isCapturing = false
+
+                                    capturedPhoto = file
+
+                                    captureMessage =
+                                        "Photo saved: ${file.name}"
+                                },
+
+                                onError = { message ->
+
+                                    isCapturing = false
+
+                                    captureMessage = message
+                                }
+                            )
+                        }
                     },
 
-                    enabled = true,
+                    enabled = previewController != null &&
+                            hasCameraPermission &&
+                            !isCapturing,
 
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.White,
@@ -626,135 +668,156 @@ class Camera2Activity : ComponentActivity() {
                     ),
 
                     modifier = Modifier
-                        .padding(top = 30.dp)
+                        .weight(1f)
                         .height(55.dp)
-                        .weight(weight = 1f)
                 ) {
 
                     Text(
-                        text = "Capture Photo"
+                        text = if (isCapturing) {
+                            "Capturing..."
+                        } else {
+                            "Capture Photo"
+                        },
+                        fontSize = 12.sp
                     )
                 }
-
             }
 
-            /*
-             * PERMISSION RETRY
-             */
+            // PHOTO CAPTURE STATUS
 
-            if (!hasCameraPermission) {
+            captureMessage?.let { message ->
 
-                Button(
-                    onClick = {
-                        permissionLauncher.launch(
-                            Manifest.permission.CAMERA
-                        )
-                    },
-
+                Text(
+                    text = message,
+                    color = if (capturedPhoto != null) Color.Green else Color.Red,
+                    fontSize = 13.sp,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 12.dp)
-                ) {
+                        .padding(top = 12.dp),
+                    textAlign = TextAlign.Center
+                )
 
-                    Text("Grant Camera Permission")
-                }
             }
 
-            Spacer(
-                modifier = Modifier.height(30.dp)
-            )
+
         }
-    }
 
-    /*
-     * REUSABLE UI COMPONENTS
-     */
+        /*
+         * PERMISSION RETRY
+         */
 
-    @Composable
-    private fun DividerLine() {
+        if (!hasCameraPermission) {
+
+            Button(
+                onClick = {
+                    permissionLauncher.launch(
+                        Manifest.permission.CAMERA
+                    )
+                },
+
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp)
+            ) {
+
+                Text("Grant Camera Permission")
+            }
+        }
 
         Spacer(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(Color.White)
+            modifier = Modifier.height(30.dp)
         )
     }
+}
 
-    @Composable
-    private fun SectionTitle(
-        text: String,
-        modifier: Modifier = Modifier
+/*
+ * REUSABLE UI COMPONENTS
+ */
+
+@Composable
+private fun DividerLine() {
+
+    Spacer(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(Color.White)
+    )
+}
+
+@Composable
+private fun SectionTitle(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+
+    Text(
+        text = text,
+        fontSize = 16.sp,
+        textAlign = TextAlign.Start,
+        color = Color.White,
+        fontWeight = FontWeight.Bold,
+        modifier = modifier.padding(bottom = 5.dp)
+    )
+}
+
+@Composable
+private fun InformationItem(
+    title: String,
+    value: String
+) {
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                top = 15.dp,
+                bottom = 12.dp
+            )
     ) {
 
         Text(
-            text = text,
-            fontSize = 16.sp,
-            textAlign = TextAlign.Start,
+            text = title,
+            fontSize = 15.sp,
             color = Color.White,
-            fontWeight = FontWeight.Bold,
-            modifier = modifier.padding(bottom = 5.dp)
+            fontWeight = FontWeight.Normal
+        )
+
+        Text(
+            text = value,
+            fontSize = 15.sp,
+            color = Color.White,
+            modifier = Modifier.padding(top = 5.dp)
         )
     }
+}
 
-    @Composable
-    private fun InformationItem(
-        title: String,
-        value: String
+@Composable
+private fun InformationRow(
+    title: String,
+    value: String
+) {
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp),
+        verticalAlignment = Alignment.Top
     ) {
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(
-                    top = 15.dp,
-                    bottom = 12.dp
-                )
-        ) {
+        Text(
+            text = title,
+            fontSize = 14.sp,
+            color = Color.White,
+            modifier = Modifier.weight(1f)
+        )
 
-            Text(
-                text = title,
-                fontSize = 15.sp,
-                color = Color.White,
-                fontWeight = FontWeight.Normal
-            )
-
-            Text(
-                text = value,
-                fontSize = 15.sp,
-                color = Color.White,
-                modifier = Modifier.padding(top = 5.dp)
-            )
-        }
-    }
-
-    @Composable
-    private fun InformationRow(
-        title: String,
-        value: String
-    ) {
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 12.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-
-            Text(
-                text = title,
-                fontSize = 14.sp,
-                color = Color.White,
-                modifier = Modifier.weight(1f)
-            )
-
-            Text(
-                text = value,
-                fontSize = 14.sp,
-                color = Color.White,
-                textAlign = TextAlign.End,
-                modifier = Modifier.weight(1f)
-            )
-        }
+        Text(
+            text = value,
+            fontSize = 14.sp,
+            color = Color.White,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
