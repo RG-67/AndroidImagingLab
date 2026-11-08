@@ -236,8 +236,10 @@ abstract class BaseCamera2Controller(
     }
 
     open fun release() {
-        backgroundHandler.post { closeCameraLocked() }
-        backgroundThread.quitSafely()
+        backgroundHandler.post {
+            closeCameraLocked()
+            backgroundThread.quitSafely()
+        }
     }
 
     protected fun createCaptureSession(
@@ -342,7 +344,6 @@ abstract class BaseCamera2Controller(
                 else -> 0
             }
     }
-
 
 
 }
