@@ -586,7 +586,8 @@ class Camera2Activity : ComponentActivity() {
                 valueRange = 0f..capabilities.minimumFocusDistance
                     .coerceAtLeast(0.01f),
 
-                enabled = manualFocusSupported
+                enabled = manualFocusSupported,
+                modifier = modifier.padding(bottom = 10.dp)
             )
 
             DividerLine()
@@ -820,7 +821,8 @@ class Camera2Activity : ComponentActivity() {
                     valueRange = compensationRange.first.toFloat()..
                             compensationRange.last.toFloat(),
 
-                    enabled = compensationEnabled
+                    enabled = compensationEnabled,
+                    modifier = modifier.padding(bottom = 10.dp)
                 )
             }
 
@@ -876,6 +878,7 @@ class Camera2Activity : ComponentActivity() {
                         !isCapturing,
 
                 modifier = Modifier
+                    .padding(bottom = 20.dp)
                     .fillMaxWidth()
                     .height(55.dp)
             ) {
@@ -1033,7 +1036,10 @@ class Camera2Activity : ComponentActivity() {
 
                 enabled = selectedCameraId != null && !isLoading,
 
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .padding(bottom = 20.dp)
+                    .fillMaxWidth()
+                    .height(55.dp)
             ) {
 
                 Text(
