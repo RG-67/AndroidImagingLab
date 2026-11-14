@@ -49,129 +49,290 @@ class Camera2Inspector(context: Context) {
         val characteristics =
             cameraManager.getCameraCharacteristics(cameraId)
 
+        /*
+         * HARDWARE LEVEL
+         */
+
         val hardwareValue = characteristics.get(
             CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL
         )
 
         val hardwareLevel = when (hardwareValue) {
-            CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY -> "LEGACY"
-            CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LIMITED -> "LIMITED"
-            CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_FULL -> "FULL"
-            CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_3 -> "LEVEL_3"
-            CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_EXTERNAL -> "EXTERNAL"
+
+            CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY ->
+                "LEGACY"
+
+            CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LIMITED ->
+                "LIMITED"
+
+            CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_FULL ->
+                "FULL"
+
+            CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_3 ->
+                "LEVEL_3"
+
+            CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_EXTERNAL ->
+                "EXTERNAL"
+
             else -> "UNKNOWN"
         }
 
-        // Available capabilities
+        /*
+         * LENS FACING
+         */
 
-        val availableCapabilities =
-            characteristics.get(
-                CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES
-            ) ?: intArrayOf()
+        val lensFacingValue = characteristics.get(
+            CameraCharacteristics.LENS_FACING
+        )
+
+        val lensFacing = when (lensFacingValue) {
+
+            CameraCharacteristics.LENS_FACING_BACK ->
+                "Back"
+
+            CameraCharacteristics.LENS_FACING_FRONT ->
+                "Front"
+
+            CameraCharacteristics.LENS_FACING_EXTERNAL ->
+                "External"
+
+            else -> "Unknown"
+        }
+
+        /*
+         * SENSOR RESOLUTION
+         */
+
+        val pixelArraySize = characteristics.get(
+            CameraCharacteristics.SENSOR_INFO_PIXEL_ARRAY_SIZE
+        )
+
+        val sensorResolution = pixelArraySize?.let {
+
+            "${it.width} × ${it.height}"
+
+        } ?: "Unavailable"
+
+        /*
+         * PHYSICAL SENSOR SIZE
+         */
+
+        val physicalSize = characteristics.get(
+            CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE
+        )
+
+        val physicalSensorSize = physicalSize?.let {
+
+            "${"%.2f".format(it.width)} × " +
+                    "${"%.2f".format(it.height)} mm"
+
+        } ?: "Unavailable"
+
+        /*
+         * SENSOR ORIENTATION
+         */
+
+        val sensorOrientation = characteristics.get(
+            CameraCharacteristics.SENSOR_ORIENTATION
+        )
+
+        /*
+         * AVAILABLE CAPABILITIES
+         */
+
+        val availableCapabilities = characteristics.get(
+            CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES
+        )?.toList() ?: emptyList()
+
+        /*
+         * MANUAL SENSOR SUPPORT
+         */
 
         val manualSensorSupported =
             CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_MANUAL_SENSOR in availableCapabilities
 
-        // ISO
+        /*
+         * RAW SUPPORT
+         */
 
-        val sensitivityRange =
-            characteristics.get(
-                CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE
-            )
+        val rawSupported =
+            CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_RAW in availableCapabilities
+
+        /*
+         * MANUAL POST PROCESSING
+         */
+
+        val manualPostProcessingSupported =
+            CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_MANUAL_POST_PROCESSING in availableCapabilities
+
+        /*
+         * ISO RANGE
+         */
+
+        val sensitivityRange = characteristics.get(
+            CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE
+        )
 
         val isoRange = sensitivityRange?.let {
             it.lower..it.upper
         }
 
-        val supportsManualIso =
-            manualSensorSupported && sensitivityRange != null
+        /*
+         * EXPOSURE RANGE
+         */
 
-        // Exposure time
-
-        val exposureRangeValue =
-            characteristics.get(
-                CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE
-            )
+        val exposureRangeValue = characteristics.get(
+            CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE
+        )
 
         val exposureRange = exposureRangeValue?.let {
             it.lower..it.upper
         }
 
-        val supportsManualExposure =
-            manualSensorSupported && exposureRangeValue != null
+        /*
+         * FRAME DURATION RANGE
+         */
 
-        // Autofocus
+        val frameDurationValue =
+            characteristics.get(CameraCharacteristics.SENSOR_INFO_MAX_FRAME_DURATION)
 
-        val autofocusModes =
-            characteristics.get(
-                CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES
-            )?.toList() ?: emptyList()
+        /*
+        * MAXIMUM FRAME DURATION
+        */
 
-        val autofocusSupported =
-            autofocusModes.any {
-                it != CaptureRequest.CONTROL_AF_MODE_OFF
-            }
+        val maximumFrameDuration = characteristics.get(
+            CameraCharacteristics.SENSOR_INFO_MAX_FRAME_DURATION
+        )
 
-        // Manual focus
+        /*
+         * MINIMUM FOCUS DISTANCE
+         */
 
-        val minimumFocusDistance =
-            characteristics.get(
-                CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE
-            ) ?: 0f
+        val minimumFocusDistance = characteristics.get(
+            CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE
+        ) ?: 0f
 
         val manualFocusSupported =
             minimumFocusDistance > 0f
 
-        // Exposure compensation
+        /*
+         * AUTOFOCUS MODES
+         */
 
-        val compensationRange =
-            characteristics.get(
-                CameraCharacteristics.CONTROL_AE_COMPENSATION_RANGE
-            )
+        val autofocusModes = characteristics.get(
+            CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES
+        )?.toList() ?: emptyList()
 
-        val compensationStep =
-            characteristics.get(
-                CameraCharacteristics.CONTROL_AE_COMPENSATION_STEP
-            )
+        val autofocusSupported = autofocusModes.any {
+
+            it != CaptureRequest.CONTROL_AF_MODE_OFF
+        }
+
+        /*
+         * AUTO WHITE BALANCE MODES
+         */
+
+        val awbModes = characteristics.get(
+            CameraCharacteristics.CONTROL_AWB_AVAILABLE_MODES
+        )?.toList() ?: emptyList()
+
+        /*
+         * AUTO EXPOSURE MODES
+         */
+
+        val aeModes = characteristics.get(
+            CameraCharacteristics.CONTROL_AE_AVAILABLE_MODES
+        )?.toList() ?: emptyList()
+
+        /*
+         * EXPOSURE COMPENSATION
+         */
+
+        val compensationRange = characteristics.get(
+            CameraCharacteristics.CONTROL_AE_COMPENSATION_RANGE
+        )
+
+        val compensationStep = characteristics.get(
+            CameraCharacteristics.CONTROL_AE_COMPENSATION_STEP
+        )
 
         val compensationSupported =
             compensationRange != null &&
                     compensationStep != null &&
                     compensationStep.toFloat() > 0f
 
-        // Debug information
+        /*
+         * DEBUG INFORMATION
+         */
 
-        Log.d("CameraCapabilities", "Camera ID: $cameraId")
-        Log.d("CameraCapabilities", "Hardware: $hardwareLevel")
-        Log.d("CameraCapabilities", "Manual Sensor: $manualSensorSupported")
-        Log.d("CameraCapabilities", "ISO Range: $isoRange")
-        Log.d("CameraCapabilities", "Exposure Range: $exposureRange")
-        Log.d("CameraCapabilities", "ISO Supported: $supportsManualIso")
-        Log.d("CameraCapabilities", "Exposure Supported: $supportsManualExposure")
+        Log.d("Camera2Inspector", "Camera ID: $cameraId")
+
+        Log.d("Camera2Inspector", "Lens Facing: $lensFacing")
+
+        Log.d("Camera2Inspector", "Hardware Level: $hardwareLevel")
+
+        Log.d("Camera2Inspector", "Sensor Resolution: $sensorResolution")
+
+        Log.d("Camera2Inspector", "Physical Sensor Size: $physicalSensorSize")
+
+        Log.d("Camera2Inspector", "ISO Range: $isoRange")
+
+        Log.d("Camera2Inspector", "Exposure Range: $exposureRange")
+
+        Log.d("Camera2Inspector", "Frame Duration: $frameDurationValue")
+
+        Log.d("Camera2Inspector", "RAW Supported: $rawSupported")
+
         Log.d(
-            "CameraCapabilities",
-            "Available capabilities: ${availableCapabilities.contentToString()}"
+            "Camera2Inspector",
+            "Manual Sensor Supported: $manualSensorSupported"
         )
+
+        Log.d(
+            "Camera2Inspector",
+            "Manual Post Processing: $manualPostProcessingSupported"
+        )
+
+        Log.d(
+            "Camera2Inspector",
+            "Available Capabilities: ${availableCapabilities}"
+        )
+
+        /*
+         * RETURN CAMERA CAPABILITIES
+         */
 
         return CameraCapabilities(
 
             cameraId = cameraId,
 
+            lensFacing = lensFacing,
+
             hardwareLevel = hardwareLevel,
 
-            manualSensor = manualSensorSupported,
+            sensorResolution = sensorResolution,
 
-            autoFocus = autofocusSupported,
+            physicalSensorSize = physicalSensorSize,
 
-            manualFocus = manualFocusSupported,
+            sensorOrientation = sensorOrientation,
+
+            supportsManualSensor = manualSensorSupported,
 
             isoRange = isoRange,
 
             exposureRange = exposureRange,
 
+            supportsManualFocus = manualFocusSupported,
+
             minimumFocusDistance = minimumFocusDistance,
 
+            autoFocus = autofocusSupported,
+
             autofocusModes = autofocusModes,
+
+            aeModes = aeModes,
+
+            awbModes = awbModes,
 
             exposureCompensationRange = compensationRange?.let {
                 it.lower..it.upper
@@ -183,12 +344,16 @@ class Camera2Inspector(context: Context) {
             supportsExposureCompensation =
                 compensationSupported,
 
-            supportsManualSensor =
-                manualSensorSupported,
+            supportsRaw = rawSupported,
 
-            supportsManualFocus =
-                manualFocusSupported
+            supportsManualPostProcessing =
+                manualPostProcessingSupported,
+
+            availableCapabilities = availableCapabilities
         )
+
+
+
     }
 
 

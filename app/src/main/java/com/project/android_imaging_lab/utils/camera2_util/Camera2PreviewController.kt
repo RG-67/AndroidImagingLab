@@ -28,6 +28,11 @@ class Camera2PreviewController(
     cameraId: String
 ) : BaseCamera2Controller(context, cameraId) {
 
+    var requestedState by mutableStateOf(RequestedCameraState())
+        private set
+
+    private var previousTimestamp: Long? = null
+
     private var imageReader: ImageReader? = null
 
     private var captureInProgress = false
@@ -64,6 +69,10 @@ class Camera2PreviewController(
                 result: TotalCaptureResult
             ) {
 
+                /*
+                 * ACTUAL SENSOR VALUES
+                 */
+
                 val iso = result.get(
                     CaptureResult.SENSOR_SENSITIVITY
                 )
@@ -76,6 +85,10 @@ class Camera2PreviewController(
                     CaptureResult.LENS_FOCUS_DISTANCE
                 )
 
+                /*
+                 * CAMERA STATES
+                 */
+
                 val afState = result.get(
                     CaptureResult.CONTROL_AF_STATE
                 )
@@ -84,6 +97,60 @@ class Camera2PreviewController(
                     CaptureResult.CONTROL_AE_STATE
                 )
 
+                val awbState = result.get(
+                    CaptureResult.CONTROL_AWB_STATE
+                )
+
+                /*
+                 * ACTIVE CAMERA MODES
+                 */
+
+                val afMode = result.get(
+                    CaptureResult.CONTROL_AF_MODE
+                )
+
+                val aeMode = result.get(
+                    CaptureResult.CONTROL_AE_MODE
+                )
+
+                /*
+                 * FRAME METADATA
+                 */
+
+                val frameNumber = result.frameNumber
+
+                val timestamp = result.get(
+                    CaptureResult.SENSOR_TIMESTAMP
+                )
+
+                var frameInterval: Long? = null
+
+                var estimatedFps: Float? = null
+
+                if (timestamp != null) {
+
+                    val previous = previousTimestamp
+
+                    if (previous != null && timestamp > previous) {
+
+                        frameInterval = timestamp - previous
+
+                        estimatedFps = 1_000_000_000f /
+                                frameInterval.toFloat()
+                    }
+
+                    previousTimestamp = timestamp
+                }
+
+
+                val frameDuration = result.get(
+                    CaptureResult.SENSOR_FRAME_DURATION
+                )
+
+                /*
+                 * UPDATE LAST KNOWN SENSOR VALUES
+                 */
+
                 iso?.let {
                     currentIso = it
                 }
@@ -91,6 +158,10 @@ class Camera2PreviewController(
                 exposure?.let {
                     currentExposureTime = it
                 }
+
+                /*
+                 * UPDATE COMPOSE STATE
+                 */
 
                 mainHandler.post {
 
@@ -104,10 +175,28 @@ class Camera2PreviewController(
 
                         afState = afState,
 
-                        aeState = aeState
+                        aeState = aeState,
+
+                        awbState = awbState,
+
+                        afMode = afMode,
+
+                        aeMode = aeMode,
+
+                        frameNumber = frameNumber,
+
+                        sensorTimestamp = timestamp,
+
+                        frameDuration = frameDuration,
+
+                        frameInterval = frameInterval,
+
+                        estimatedFps = estimatedFps
+
                     )
                 }
             }
+
         }
 
     override fun onCameraPrepared(
@@ -399,6 +488,33 @@ class Camera2PreviewController(
 
         cameraSettings = updatedSettings
 
+        requestedState = RequestedCameraState(
+
+            requestedIso = updatedSettings.iso,
+
+            requestedExposureTime = updatedSettings.exposureTime,
+
+            requestedFocusDistance =
+                updatedSettings.manualFocusDistance,
+
+            requestedAfMode = if (
+                updatedSettings.manualFocusDistance != null
+            ) {
+                CaptureRequest.CONTROL_AF_MODE_OFF
+            } else {
+                updatedSettings.autofocusMode
+            },
+
+            requestedAeMode = if (
+                updatedSettings.iso != null ||
+                updatedSettings.exposureTime != null
+            ) {
+                CaptureRequest.CONTROL_AE_MODE_OFF
+            } else {
+                CaptureRequest.CONTROL_AE_MODE_ON
+            }
+        )
+
         backgroundHandler.post {
 
             val builder = previewRequestBuilder ?: return@post
@@ -650,6 +766,8 @@ class Camera2PreviewController(
         currentIso = null
 
         currentExposureTime = null
+
+        previousTimestamp = null
 
         mainHandler.post {
             captureState = CameraCaptureState()

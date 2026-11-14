@@ -949,6 +949,109 @@ class Camera2Activity : ComponentActivity() {
             DividerLine()
 
             /*
+            * REQUESTED CAMERA SETTINGS
+            */
+
+            Spacer(Modifier.height(20.dp))
+
+            SectionTitle("REQUESTED CAMERA SETTINGS")
+
+            val requestedState = controller?.requestedState
+
+            InformationRow(
+                "Requested ISO:",
+                requestedState?.requestedIso?.toString() ?: "Auto"
+            )
+
+            InformationRow(
+                "Requested Exposure:",
+                requestedState?.requestedExposureTime?.let {
+                    formatShutterSpeed(it)
+                } ?: "Auto"
+            )
+
+            InformationRow(
+                "Requested Focus:",
+                requestedState?.requestedFocusDistance?.let {
+                    "%.2f D".format(it)
+                } ?: "Auto"
+            )
+
+            InformationRow(
+                "Requested AF Mode:",
+                requestedState?.requestedAfMode?.let {
+                    autofocusNames[it] ?: "Unknown"
+                } ?: "Unavailable"
+            )
+
+            InformationRow(
+                "Requested AE Mode:",
+                when (requestedState?.requestedAeMode) {
+
+                    CaptureRequest.CONTROL_AE_MODE_ON ->
+                        "Auto"
+
+                    CaptureRequest.CONTROL_AE_MODE_OFF ->
+                        "Manual"
+
+                    else -> "Unavailable"
+                }
+            )
+
+            DividerLine()
+
+            /*
+            * CAPTURE RESULT METADATA
+            */
+
+            Spacer(Modifier.height(20.dp))
+
+            SectionTitle("CAPTURE RESULT METADATA")
+
+            InformationRow(
+                "Actual AWB State:",
+                actualState?.awbState?.let {
+                    formatAwbState(it)
+                } ?: "Unavailable"
+            )
+
+            InformationRow(
+                "Actual AF Mode:",
+                actualState?.afMode?.let {
+                    formatAfMode(it)
+                } ?: "Unavailable"
+            )
+
+            InformationRow(
+                "Actual AE Mode:",
+                actualState?.aeMode?.let {
+                    formatAeMode(it)
+                } ?: "Unavailable"
+            )
+
+            InformationRow(
+                "Frame Number:",
+                actualState?.frameNumber?.toString() ?: "Waiting..."
+            )
+
+            InformationRow(
+                "Sensor Timestamp:",
+                actualState?.sensorTimestamp?.let {
+                    "$it ns"
+                } ?: "Unavailable"
+            )
+
+            InformationRow(
+                "Frame Duration:",
+                actualState?.frameDuration?.let {
+                    "$it ns"
+                } ?: "Unavailable"
+            )
+
+            DividerLine()
+
+
+            /*
              * CAMERA CAPABILITIES
              */
 
@@ -1009,6 +1112,40 @@ class Camera2Activity : ComponentActivity() {
             )
 
             Spacer(Modifier.height(20.dp))
+
+            InformationRow(
+                "RAW Support:",
+                if (capabilities.supportsRaw) {
+                    "Supported"
+                } else {
+                    "Not supported"
+                }
+            )
+
+            InformationRow(
+                "Manual Post Processing:",
+                if (capabilities.supportsManualPostProcessing) {
+                    "Supported"
+                } else {
+                    "Not supported"
+                }
+            )
+
+            InformationRow(
+                "Supported AF Modes:",
+                capabilities.autofocusModes.size.toString()
+            )
+
+            InformationRow(
+                "Supported AE Modes:",
+                capabilities.aeModes.size.toString()
+            )
+
+            InformationRow(
+                "Supported AWB Modes:",
+                capabilities.awbModes.size.toString()
+            )
+
 
             Button(
 
@@ -1076,6 +1213,169 @@ class Camera2Activity : ComponentActivity() {
             }
 
             Spacer(Modifier.height(30.dp))
+
+
+            /*
+            * CAMERA CHARACTERISTICS
+            */
+
+            Spacer(Modifier.height(20.dp))
+
+            SectionTitle("CAMERA CHARACTERISTICS")
+
+            InformationRow("Camera ID:", capabilities.cameraId)
+
+            InformationRow("Lens Facing:", capabilities.lensFacing)
+
+            InformationRow("Hardware Level:", capabilities.hardwareLevel)
+
+            InformationRow("Sensor Resolution:", capabilities.sensorResolution)
+
+            InformationRow("Physical Sensor Size:", capabilities.physicalSensorSize)
+
+            InformationRow(
+                "Sensor Orientation:",
+                capabilities.sensorOrientation?.let { "$it°" } ?: "Unavailable")
+
+            InformationRow(
+                "ISO Range:",
+                capabilities.isoRange?.let { "${it.first} – ${it.last}" } ?: "Unavailable")
+
+            InformationRow(
+                "Exposure Range:",
+                capabilities.exposureRange?.let { "${it.first} – ${it.last} ns" } ?: "Unavailable")
+
+
+            InformationRow("Minimum Focus Distance:", "${capabilities.minimumFocusDistance} D")
+
+            InformationRow(
+                "RAW Support:", if (capabilities.supportsRaw) {
+                    "Supported"
+                } else {
+                    "Not supported"
+                }
+            )
+
+            InformationRow(
+                "Manual Sensor:", if (capabilities.supportsManualSensor) {
+                    "Supported"
+                } else {
+                    "Not supported"
+                }
+            )
+
+            InformationRow(
+                "Manual Post Processing:",
+                if (capabilities.supportsManualPostProcessing) {
+                    "Supported"
+                } else {
+                    "Not supported"
+                }
+            )
+
+            InformationRow(
+                "Available AWB Modes:",
+                capabilities.awbModes.joinToString().ifEmpty { "Unavailable" })
+
+            InformationRow(
+                "Available AE Modes:",
+                capabilities.aeModes.joinToString().ifEmpty { "Unavailable" })
+
+            InformationRow(
+                "Available Capabilities:",
+                capabilities.availableCapabilities.joinToString().ifEmpty { "Unavailable" })
+
+            DividerLine()
+
+
+            /*
+ * LIVE FRAME METADATA
+ */
+
+            Spacer(Modifier.height(20.dp))
+
+            SectionTitle("LIVE FRAME METADATA")
+
+            val frameState = controller?.captureState
+
+            InformationRow(
+                "Frame Number:",
+                frameState?.frameNumber?.toString() ?: "Waiting..."
+            )
+
+            InformationRow(
+                "Sensor Timestamp:",
+                frameState?.sensorTimestamp?.let {
+                    "$it ns"
+                } ?: "Unavailable"
+            )
+
+            InformationRow(
+                "Frame Duration:",
+                frameState?.frameDuration?.let {
+                    "$it ns"
+                } ?: "Unavailable"
+            )
+
+            InformationRow(
+                "Frame Interval:",
+                frameState?.frameInterval?.let {
+                    "$it ns"
+                } ?: "Waiting..."
+            )
+
+            InformationRow(
+                "Estimated FPS:",
+                frameState?.estimatedFps?.let {
+                    "%.2f FPS".format(it)
+                } ?: "Calculating..."
+            )
+
+            DividerLine()
+
+            InformationRow(
+                "Actual ISO:",
+                frameState?.actualIso?.toString() ?: "Unavailable"
+            )
+
+            InformationRow(
+                "Actual Exposure:",
+                frameState?.actualExposureTime?.let {
+                    formatShutterSpeed(it)
+                } ?: "Unavailable"
+            )
+
+            InformationRow(
+                "Focus Distance:",
+                frameState?.actualFocusDistance?.let {
+                    "%.2f D".format(it)
+                } ?: "Unavailable"
+            )
+
+            InformationRow(
+                "AF State:",
+                frameState?.afState?.let {
+                    formatAfState(it)
+                } ?: "Unavailable"
+            )
+
+            InformationRow(
+                "AE State:",
+                frameState?.aeState?.let {
+                    formatAeState(it)
+                } ?: "Unavailable"
+            )
+
+            InformationRow(
+                "AWB State:",
+                frameState?.awbState?.let {
+                    formatAwbState(it)
+                } ?: "Unavailable"
+            )
+
+            DividerLine()
+
+
         }
     }
 
@@ -1258,6 +1558,75 @@ fun formatAeState(state: Int): String {
 
         CaptureResult.CONTROL_AE_STATE_PRECAPTURE ->
             "Precapture"
+
+        else -> "Unknown"
+    }
+}
+
+fun formatAwbState(state: Int): String {
+
+    return when (state) {
+
+        CaptureResult.CONTROL_AWB_STATE_INACTIVE ->
+            "Inactive"
+
+        CaptureResult.CONTROL_AWB_STATE_SEARCHING ->
+            "Searching"
+
+        CaptureResult.CONTROL_AWB_STATE_CONVERGED ->
+            "Converged"
+
+        CaptureResult.CONTROL_AWB_STATE_LOCKED ->
+            "Locked"
+
+        else -> "Unknown"
+    }
+}
+
+fun formatAfMode(mode: Int): String {
+
+    return when (mode) {
+
+        CaptureRequest.CONTROL_AF_MODE_OFF ->
+            "Manual"
+
+        CaptureRequest.CONTROL_AF_MODE_AUTO ->
+            "Auto"
+
+        CaptureRequest.CONTROL_AF_MODE_MACRO ->
+            "Macro"
+
+        CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO ->
+            "Continuous Video"
+
+        CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE ->
+            "Continuous Picture"
+
+        CaptureRequest.CONTROL_AF_MODE_EDOF ->
+            "EDOF"
+
+        else -> "Unknown"
+    }
+}
+
+fun formatAeMode(mode: Int): String {
+
+    return when (mode) {
+
+        CaptureRequest.CONTROL_AE_MODE_OFF ->
+            "Manual"
+
+        CaptureRequest.CONTROL_AE_MODE_ON ->
+            "Auto"
+
+        CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH ->
+            "Auto Flash"
+
+        CaptureRequest.CONTROL_AE_MODE_ON_ALWAYS_FLASH ->
+            "Always Flash"
+
+        CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH_REDEYE ->
+            "Red-eye Reduction"
 
         else -> "Unknown"
     }
