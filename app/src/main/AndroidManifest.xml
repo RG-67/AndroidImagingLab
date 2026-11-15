@@ -22,10 +22,13 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Android_Imaging_Lab">
         <activity
+            android:name=".camera2_lab.Camera2Activity"
+            android:exported="false" />
+        <activity
             android:name=".cameraX_lab.CameraXActivity"
             android:exported="false" />
         <activity
-            android:name=".camera2_lab.Camera2Activity"
+            android:name=".image_processing.ImageProcessingActivity"
             android:exported="true"
             android:theme="@style/Theme.Android_Imaging_Lab">
             <intent-filter>
