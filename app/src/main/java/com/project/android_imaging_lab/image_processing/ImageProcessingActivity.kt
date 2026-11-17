@@ -23,9 +23,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -45,6 +54,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.project.android_imaging_lab.ui.theme.Android_Imaging_LabTheme
+import com.project.android_imaging_lab.utils.camera2_util.Camera2Inspector
+import com.project.android_imaging_lab.utils.camera2_util.CameraOption
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.security.Permissions
@@ -71,6 +82,7 @@ class ImageProcessingActivity : ComponentActivity() {
 }
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImageProcessScreen(modifier: Modifier) {
 
@@ -89,6 +101,53 @@ fun ImageProcessScreen(modifier: Modifier) {
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             hasCameraPermission = granted
         }
+
+    var expandedCamera by remember { mutableStateOf(false) }
+
+    var cameraOptions by remember { mutableStateOf<List<CameraOption>>(emptyList()) }
+
+    var selectedCameraId by remember { mutableStateOf<String?>(null) }
+
+    var isLoading by remember { mutableStateOf(false) }
+
+    val inspector = remember { Camera2Inspector(context) }
+
+
+    /*
+    * LOAD CAMERAS
+    */
+
+    LaunchedEffect(hasCameraPermission) {
+
+        if (!hasCameraPermission) return@LaunchedEffect
+
+        try {
+
+            isLoading = true
+
+            val cameras = withContext(Dispatchers.IO) {
+
+                inspector.getAvailableCameras()
+            }
+
+            cameraOptions = cameras
+
+            val initialCamera = cameras.firstOrNull {
+                it.name.startsWith("Back Camera")
+            } ?: cameras.firstOrNull()
+
+            selectedCameraId = initialCamera?.id
+
+        } catch (e: Exception) {
+
+            Log.e("Image Processing", "Camera discovery failed", e)
+
+        } finally {
+
+            isLoading = false
+        }
+    }
+
 
     /*
     * MAIN UI
@@ -147,9 +206,89 @@ fun ImageProcessScreen(modifier: Modifier) {
 
         }
 
-        // TODO Set Dropdown For Camera Selection
+        Spacer(modifier = modifier.height(10.dp))
+
+        ExposedDropdownMenuBox(
+            expanded = expandedCamera,
+            onExpandedChange = {
+                expandedCamera = !expandedCamera
+            }
+        ) {
+
+            OutlinedTextField(
+                value = cameraOptions.firstOrNull {
+                    it.id == selectedCameraId
+                }?.name ?: "Select camera",
+
+                onValueChange = {},
+
+                readOnly = true,
+
+                singleLine = true,
+
+                textStyle = TextStyle(
+                    color = Color.White,
+                    fontSize = 15.sp
+                ),
+
+                label = {
+                    Text(
+                        "Select Camera",
+                        color = Color.LightGray
+                    )
+                },
+
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(
+                        expanded = expandedCamera
+                    )
+                },
+
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = Color(0xFF80CBC4),
+                    unfocusedBorderColor = Color.Gray,
+                    focusedLabelColor = Color(0xFF80CBC4),
+                    unfocusedLabelColor = Color.LightGray,
+                    focusedTrailingIconColor = Color.White,
+                    unfocusedTrailingIconColor = Color.White
+                ),
+
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(
+                        ExposedDropdownMenuAnchorType.PrimaryNotEditable
+                    )
+            )
+
+            ExposedDropdownMenu(
+                expanded = expandedCamera,
+                onDismissRequest = {
+                    expandedCamera = false
+                }
+            ) {
+
+                cameraOptions.forEach { camera ->
+
+                    DropdownMenuItem(
+
+                        text = {
+                            Text(camera.name, color = Color.Black)
+                        },
+
+                        onClick = {
+                            selectedCameraId = camera.id
+                            expandedCamera = false
+                        }
+                    )
+                }
+            }
+        }
+
 
         Spacer(modifier = modifier.height(10.dp))
+
 
         Text(
             text = "Image Format: YUV_420_888", // TODO
@@ -157,16 +296,70 @@ fun ImageProcessScreen(modifier: Modifier) {
         )
 
         Button(
-            onClick = {},
+            onClick = {
+                if (!hasCameraPermission) {
+                    permissionLauncher.launch(Manifest.permission.CAMERA)
+                }
+            },
             modifier = modifier
                 .fillMaxWidth()
-                .padding(top = 20.dp)
+                .padding(top = 20.dp, bottom = 20.dp)
                 .height(50.dp)
         ) {
             Text(text = "Capture YUV Frame")
         }
 
+        DividerLine()
 
+        /*
+        * RGB IMAGE CAPTURED
+        */
+
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(280.dp)
+                .padding(top = 20.dp)
+                .background(Color.Black)
+        ) {
+            // TODO
+        }
+
+        Spacer(modifier.height(10.dp))
+
+        Text(text = "Converted Format: RGB_888", color = Color.White) // TODO
+
+        Text(text = "Converted Format: RGB_888", color = Color.White) // TODO
+
+        Text(text = "Conversion: SUCCESS", color = Color.White) // TODO
+
+        Row(
+            modifier = modifier.fillMaxWidth()
+        ) {
+
+            Button(
+                onClick = {}, // TODO
+                modifier = modifier
+                    .weight(1f)
+                    .padding(vertical = 20.dp)
+                    .height(50.dp)
+            ) {
+                Text(text = "Capture Again", color = Color.White)
+            }
+
+            Spacer(modifier.width(5.dp))
+
+            Button(
+                onClick = {}, // TODO
+                modifier = modifier
+                    .weight(1f)
+                    .padding(vertical = 20.dp)
+                    .height(50.dp)
+            ) {
+                Text(text = "Back to Camera", color = Color.White)
+            }
+
+        }
 
 
     }
