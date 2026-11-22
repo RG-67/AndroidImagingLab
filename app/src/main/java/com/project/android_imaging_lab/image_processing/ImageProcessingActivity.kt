@@ -37,6 +37,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,9 +56,12 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.project.android_imaging_lab.ui.theme.Android_Imaging_LabTheme
 import com.project.android_imaging_lab.utils.camera2_util.Camera2Inspector
+import com.project.android_imaging_lab.utils.camera2_util.Camera2Preview
+import com.project.android_imaging_lab.utils.camera2_util.Camera2PreviewController
 import com.project.android_imaging_lab.utils.camera2_util.CameraOption
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.security.Permission
 import java.security.Permissions
 
 /*
@@ -88,6 +92,37 @@ fun ImageProcessScreen(modifier: Modifier) {
 
     val context = LocalContext.current
 
+    var originalFormat by remember { mutableStateOf("YUV_420_888") }
+    var convertedFormat by remember { mutableStateOf("RGB_888") }
+    var conversion by remember { mutableStateOf("SUCCESS") }
+    var imageFormat by remember { mutableStateOf("YUV_420_888") }
+
+
+    var isLoading by remember { mutableStateOf(false) }
+
+    var expandedCamera by remember { mutableStateOf(false) }
+
+    var cameraOptions by remember { mutableStateOf<List<CameraOption>>(emptyList()) }
+
+    var selectedCameraId by remember { mutableStateOf<String?>(null) }
+
+    val inspector = remember { Camera2Inspector(context) }
+
+    var previewEnable by remember { mutableStateOf(true) }
+
+    val previewController = remember(selectedCameraId) {
+        selectedCameraId?.let { id ->
+            Camera2PreviewController(context, id)
+        }
+    }
+
+    DisposableEffect(previewController) {
+        onDispose {
+            previewController?.release()
+        }
+    }
+
+
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -102,15 +137,12 @@ fun ImageProcessScreen(modifier: Modifier) {
             hasCameraPermission = granted
         }
 
-    var expandedCamera by remember { mutableStateOf(false) }
 
-    var cameraOptions by remember { mutableStateOf<List<CameraOption>>(emptyList()) }
-
-    var selectedCameraId by remember { mutableStateOf<String?>(null) }
-
-    var isLoading by remember { mutableStateOf(false) }
-
-    val inspector = remember { Camera2Inspector(context) }
+    LaunchedEffect(Unit) {
+        if (!hasCameraPermission) {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
 
 
     /*
@@ -194,7 +226,16 @@ fun ImageProcessScreen(modifier: Modifier) {
                 .background(Color.Black),
             contentAlignment = Alignment.Center
         ) {
-            // TODO Camera Permission Checking and Live Preview
+
+            if (hasCameraPermission && previewEnable && previewController != null) {
+                Camera2Preview(
+                    controller = previewController,
+                    modifier = modifier.fillMaxSize()
+                )
+            } else {
+                Text(text = "CAMERA NOT OPEN", color = Color.White)
+            }
+
 
             Text(
                 text = "LIVE",
@@ -291,7 +332,7 @@ fun ImageProcessScreen(modifier: Modifier) {
 
 
         Text(
-            text = "Image Format: YUV_420_888", // TODO
+            text = "Image Format: $imageFormat",
             color = Color.White
         )
 
@@ -327,11 +368,11 @@ fun ImageProcessScreen(modifier: Modifier) {
 
         Spacer(modifier.height(10.dp))
 
-        Text(text = "Converted Format: RGB_888", color = Color.White) // TODO
+        Text(text = "Original Format: $originalFormat", color = Color.White)
 
-        Text(text = "Converted Format: RGB_888", color = Color.White) // TODO
+        Text(text = "Converted Format: $convertedFormat", color = Color.White)
 
-        Text(text = "Conversion: SUCCESS", color = Color.White) // TODO
+        Text(text = "Conversion: $conversion", color = Color.White)
 
         Row(
             modifier = modifier.fillMaxWidth()
